@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"/>
+    <link rel="stylesheet" href="./index.css" />
+  </head>
+  <script src="./vue.js"></script>
+  <script src="./emoji.js"></script>
+  <body>
+    <div id="app">
+      <div class="content-container">
+        <div
+          class="msg-container"
+          @click.stop="handleClickEmojiLeader(false)"
+        >
+          <div
+            v-for="(msgItem, index) in msg"
+            :key="index"
+            :class="typeClassObj[msgItem.msg_type]"
+          >
+            <div
+              :class="isConnectState(msgItem.msg_type) ? 'connected-content' : 'msg-content'"
+              :data-nickname="msgItem.user || ''"
+              :style="{ margin: msgItem.user ? '30px 0' : '10px 0' }"
+            >
+              {{msgItem.message}}
+            </div>
+          </div>
+        </div>
+        <!-- 发送的input -->
+        <div class="input-container">
+          <input v-model="inputVal" class="msg-input" @keyPress="inputMethod"/>
+          <div @click.stop="handleClickEmojiLeader" class="emoji-button">😬</div>
+          <div disabled="!inputVal" class="msg-send-button" @click.stop="handleClickButton">发送</div>
+        </div>
+        <!-- 表情包区域 -->
+        <div v-show="emojiBoardVisible" class="emoji-container">
+          <div
+            v-for="(emoji, index) in emojiList"
+            :key="index"
+            :class="emoji ? 'emoji-item' : 'white-emoji-item'"
+            @click.stop="handleClickEmoji(emoji)"
+          >{{emoji}}</div>
+        </div>
+      </div>
+    </div>
+  </body>
+  <script>
+    const vm = new Vue({
+      el: '#app',
+      data: {
+        socketItem: null, // 当前的socket
+        inputVal: '', // 当前的输入值
+        typeClassObj: {
+          send: 'send-msg-container',
+          get: 'get-msg-container',
+          login: 'connected-msg-container',
+          leave: 'connected-msg-container',
+          onlineCount: 'connected-msg-container',
+          '': ''
+        },
+        connectStateObj: ['login', 'leave', 'onlineCount'], // 是否只是登陆等的状态，不是消息体
+        msg: [], // 已发送的消息
+        nickname: '', // 自己的昵称
+        emojiBoardVisible: false,
+        emojiList: [] // 存emoji表情
+      },
+      mounted () {
+        // 将emoji提取
+        this.emojiList = window.emojiList
+        // 创建websocket
+        const ws = new WebSocket("ws://127.0.0.1:9001")
+        // 连接websocket
+        ws.onopen = () => {
+          this.socketItem  = ws
+          this.msg.push({
+            msg_type: 'login',
+            message: '已进入聊天室'
+          })
+        }
+        // 当接受消息时
+        ws.onmessage = (msg) => {
+          const data = JSON.parse(msg.data)
+          if (data.msg_type === 'userInfo') {
+            this.nickname = data.nickname
+            this.msg.push({
+              msg_type: 'onlineCount',
+              message: '当前' + data.onlineCount + '位用户在线'
+            })
+          } else {
+            this.msg.push({
+              msg_type: 'get',
+              ...data
+            })
+          }
+
+          // 需要滚动到最底下
+          this.screenToEnd()
+        }
+        // 断开连接
+        ws.onclose = () => {
+          if (socketItem) {
+            this.socketItem = null
+            this.msg.push({
+              msg_type: 'login',
+              message: '服务器暂停服务'
+            })
+          }
+        }
+        // 监听断开连接
+        window.onbeforeunload = function (e) {
+          if (this.socketItem) {
+            this.socketItem.close()
+          }
+        }
+      },
+      methods: {
+        isConnectState (str) {
+          if (this.connectStateObj.find(key => key === str)) {
+            return true
+          } else {
+            return false
+          }
+        },
+        sendMsg () {
+          if (this.socketItem) {
+            // 记录发送值
+            this.msg.push({
+              msg_type: 'send',
+              message: this.inputVal
+            })
+            // 发送请求
+            this.socketItem.send(JSON.stringify(this.inputVal))
+            // 清空消息
+            this.inputVal = ''
+            // 需要滚动到最底下
+            this.screenToEnd()
+          } else {
+            alert('暂未连接聊天室')
+          }
+        },
+        handleClickButton () {
+          if (this.inputVal) {
+            this.sendMsg()
+          }
+        },
+        screenToEnd () {
+          setTimeout(() => {
+            const dom = document.querySelector('.msg-container')
+            dom.scrollTop = dom.scrollHeight
+          }, 0)
+        },
+        inputMethod (e) {
+          // if (e.keyCode == 13 && e.shiftKey) {
+          //   console.log('?????')
+          //   this.inputVal += '\n'
+          // } else if (e.keyCode === 13 && !e.shiftKey) {
+          //   this.sendMsg()
+          // }
+          // 暂时这么写
+          if (e.keyCode === 13 && !e.shiftKey) {
+            this.sendMsg()
+          }
+        },
+        // 点击发送旁边的emiji
+        handleClickEmojiLeader (state) {
+          if (typeof state === 'boolean') {
+            this.emojiBoardVisible = state
+          } else {
+            this.emojiBoardVisible = !this.emojiBoardVisible
+          }
+        },
+        // 点击了某个emoji
+        handleClickEmoji (emoji) {
+          if (emoji) {
+            this.inputVal += emoji
+          }
+        }
+      },
+      watch: {
+        inputVal: function() {
+          this.inputVal = this.inputVal.trim()
+        }
+      }
+    })
+  </script>
+</html>
