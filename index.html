@@ -29,7 +29,7 @@
         </div>
         <!-- 发送的input -->
         <div class="input-container">
-          <input v-model="inputVal" class="msg-input" @keyPress="inputMethod"/>
+          <input v-model="inputVal" class="msg-input" @keyPress="inputMethod" @focus="inputFocus"/>
           <div @click.stop="handleClickEmojiLeader" class="emoji-button">😬</div>
           <div disabled="!inputVal" class="msg-send-button" @click.stop="handleClickButton">发送</div>
         </div>
@@ -69,7 +69,7 @@
         // 将emoji提取
         this.emojiList = window.emojiList
         // 创建websocket
-        const ws = new WebSocket("ws://127.0.0.1:9001")
+        const ws = new WebSocket("ws://172.20.10.2:9001")
         // 连接websocket
         ws.onopen = () => {
           this.socketItem  = ws
@@ -161,6 +161,9 @@
           if (e.keyCode === 13 && !e.shiftKey) {
             this.sendMsg()
           }
+        },
+        inputFocus () {
+          this.handleClickEmojiLeader(false)
         },
         // 点击发送旁边的emiji
         handleClickEmojiLeader (state) {
