@@ -6,6 +6,7 @@
   </head>
   <script src="./vue.js"></script>
   <script src="./emoji.js"></script>
+  <script src="./node_modules/google-protobuf/google-protobuf.js"></script>
   <body>
     <div id="app">
       <div class="content-container">
@@ -66,10 +67,13 @@
         emojiList: [] // 存emoji表情
       },
       mounted () {
+        // 初始化
+        let message = new MyMessage()
+        console.log(message)
         // 将emoji提取
         this.emojiList = window.emojiList
         // 创建websocket
-        const ws = new WebSocket("ws://172.20.10.2:9001")
+        const ws = new WebSocket("ws://127.0.0.1:9001")
         // 连接websocket
         ws.onopen = () => {
           this.socketItem  = ws
